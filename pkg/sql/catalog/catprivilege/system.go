@@ -87,6 +87,7 @@ var (
 		catconstants.AdvisoryLocksTableName,
 		catconstants.ClusterMetricsTableName,
 		catconstants.StatementsTableName,
+		catconstants.VcpuHoursAuditTableName,
 	}
 
 	readWriteSystemSequences = []catconstants.SystemTableName{

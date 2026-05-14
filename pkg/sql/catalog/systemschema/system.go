@@ -1410,6 +1410,24 @@ CREATE TABLE system.statements (
     INDEX statements_fingerprint_idx (fingerprint ASC),
     FAMILY "primary" (fingerprint_id, fingerprint, summary, db, metadata, created_at, last_upserted)
 );`
+
+	// VcpuHoursAuditTableSchema defines the schema for the system.vcpu_hours_audit
+	// table, which stores per-node, per-hour vCPU consumption data for license
+	// auditing. This table has a 30-day retention policy.
+	//
+	// * node_id: the ID of the node reporting vCPU usage.
+	// * license_id: the license ID under which vCPUs are consumed.
+	// * hour_timestamp: the timestamp of the hour bucket for this measurement.
+	// * num_vcpu: the number of vCPUs on the node during this hour.
+	VcpuHoursAuditTableSchema = `
+CREATE TABLE system.vcpu_hours_audit (
+    node_id        INT8 NOT NULL,
+    license_id     STRING NOT NULL,
+    hour_timestamp TIMESTAMPTZ NOT NULL,
+    num_vcpu       INT8 NOT NULL,
+    CONSTRAINT "primary" PRIMARY KEY (node_id, license_id, hour_timestamp),
+    FAMILY "primary" (node_id, license_id, hour_timestamp, num_vcpu)
+);`
 )
 
 func pk(name string) descpb.IndexDescriptor {
@@ -1454,7 +1472,7 @@ const SystemDatabaseName = catconstants.SystemDatabaseName
 // release version).
 //
 // NB: Don't set this to clusterversion.Latest; use a specific version instead.
-var SystemDatabaseSchemaBootstrapVersion = clusterversion.V26_3_AlterStatementsTablePK.Version()
+var SystemDatabaseSchemaBootstrapVersion = clusterversion.V26_3_AddVcpuHoursAuditTable.Version()
 
 // MakeSystemDatabaseDesc constructs a copy of the system database
 // descriptor.
@@ -1658,6 +1676,7 @@ func MakeSystemTables() []SystemTable {
 		TableStatisticsLocksTable,
 		AdvisoryLocksTable,
 		StatementsTable,
+		VcpuHoursAuditTable,
 	}
 }
 
@@ -5551,6 +5570,36 @@ var (
 				KeyColumnDirections: singleASC,
 				KeyColumnIDs:        []descpb.ColumnID{2},
 				KeySuffixColumnIDs:  []descpb.ColumnID{1},
+			},
+		),
+	)
+
+	VcpuHoursAuditTable = makeSystemTable(
+		VcpuHoursAuditTableSchema,
+		systemTable(
+			catconstants.VcpuHoursAuditTableName,
+			descpb.InvalidID, // dynamically assigned
+			[]descpb.ColumnDescriptor{
+				{Name: "node_id", ID: 1, Type: types.Int},
+				{Name: "license_id", ID: 2, Type: types.String},
+				{Name: "hour_timestamp", ID: 3, Type: types.TimestampTZ},
+				{Name: "num_vcpu", ID: 4, Type: types.Int},
+			},
+			[]descpb.ColumnFamilyDescriptor{
+				{
+					Name:        "primary",
+					ID:          0,
+					ColumnNames: []string{"node_id", "license_id", "hour_timestamp", "num_vcpu"},
+					ColumnIDs:   []descpb.ColumnID{1, 2, 3, 4},
+				},
+			},
+			descpb.IndexDescriptor{
+				Name:                "primary",
+				ID:                  1,
+				Unique:              true,
+				KeyColumnNames:      []string{"node_id", "license_id", "hour_timestamp"},
+				KeyColumnDirections: []catenumpb.IndexColumn_Direction{catenumpb.IndexColumn_ASC, catenumpb.IndexColumn_ASC, catenumpb.IndexColumn_ASC},
+				KeyColumnIDs:        []descpb.ColumnID{1, 2, 3},
 			},
 		),
 	)
