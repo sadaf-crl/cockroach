@@ -285,6 +285,10 @@ const (
 	// to fingerprint_id and drops the legacy id column.
 	V26_3_AlterStatementsTablePK
 
+	// V26_3_AddVcpuAuditSummaryTable adds the system.vcpu_audit_summary table for
+	// permanent aggregated vCPU consumption summaries per license.
+	V26_3_AddVcpuAuditSummaryTable
+
 	// *************************************************
 	// Step (1) Add new versions above this comment.
 	// Do not add new versions to a patch release.
@@ -373,6 +377,8 @@ var versionTable = [numKeys]roachpb.Version{
 	V26_3_AddAdvisoryLocksTable: {Major: 26, Minor: 2, Internal: 6},
 
 	V26_3_AlterStatementsTablePK: {Major: 26, Minor: 2, Internal: 8},
+
+	V26_3_AddVcpuAuditSummaryTable: {Major: 26, Minor: 2, Internal: 10},
 	// *************************************************
 	// Step (2): Add new versions above this comment.
 	// *************************************************

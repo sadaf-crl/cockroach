@@ -1410,6 +1410,28 @@ CREATE TABLE system.statements (
     INDEX statements_fingerprint_idx (fingerprint ASC),
     FAMILY "primary" (fingerprint_id, fingerprint, summary, db, metadata, created_at, last_upserted)
 );`
+
+	// VcpuAuditSummaryTableSchema defines the schema for the system.vcpu_audit_summary
+	// table, which stores permanent aggregated vCPU consumption summaries per license.
+	// This table provides long-term retention of license consumption data.
+	//
+	// * license_id: the license ID (primary key).
+	// * total_vcpu_hours: cumulative vCPU hours consumed under this license.
+	// * first_seen: timestamp when this license was first used.
+	// * last_seen: timestamp when this license was last used.
+	// * last_aggregated_at: timestamp of the last aggregation from vcpu_hours_audit.
+	// * is_active: whether this license is currently in use.
+	VcpuAuditSummaryTableSchema = `
+CREATE TABLE system.vcpu_audit_summary (
+    license_id         BYTES NOT NULL,
+    total_vcpu_hours   FLOAT8 NOT NULL,
+    first_seen         TIMESTAMPTZ NOT NULL,
+    last_seen          TIMESTAMPTZ NOT NULL,
+    last_aggregated_at TIMESTAMPTZ NOT NULL,
+    is_active          BOOL NOT NULL DEFAULT true,
+    CONSTRAINT "primary" PRIMARY KEY (license_id),
+    FAMILY "primary" (license_id, total_vcpu_hours, first_seen, last_seen, last_aggregated_at, is_active)
+);`
 )
 
 func pk(name string) descpb.IndexDescriptor {
@@ -1454,7 +1476,7 @@ const SystemDatabaseName = catconstants.SystemDatabaseName
 // release version).
 //
 // NB: Don't set this to clusterversion.Latest; use a specific version instead.
-var SystemDatabaseSchemaBootstrapVersion = clusterversion.V26_3_AlterStatementsTablePK.Version()
+var SystemDatabaseSchemaBootstrapVersion = clusterversion.V26_3_AddVcpuAuditSummaryTable.Version()
 
 // MakeSystemDatabaseDesc constructs a copy of the system database
 // descriptor.
@@ -1658,6 +1680,7 @@ func MakeSystemTables() []SystemTable {
 		TableStatisticsLocksTable,
 		AdvisoryLocksTable,
 		StatementsTable,
+		VcpuAuditSummaryTable,
 	}
 }
 
@@ -5552,6 +5575,31 @@ var (
 				KeyColumnIDs:        []descpb.ColumnID{2},
 				KeySuffixColumnIDs:  []descpb.ColumnID{1},
 			},
+		),
+	)
+
+	VcpuAuditSummaryTable = makeSystemTable(
+		VcpuAuditSummaryTableSchema,
+		systemTable(
+			catconstants.VcpuAuditSummaryTableName,
+			descpb.InvalidID, // dynamically assigned
+			[]descpb.ColumnDescriptor{
+				{Name: "license_id", ID: 1, Type: types.Bytes},
+				{Name: "total_vcpu_hours", ID: 2, Type: types.Float},
+				{Name: "first_seen", ID: 3, Type: types.TimestampTZ},
+				{Name: "last_seen", ID: 4, Type: types.TimestampTZ},
+				{Name: "last_aggregated_at", ID: 5, Type: types.TimestampTZ},
+				{Name: "is_active", ID: 6, Type: types.Bool},
+			},
+			[]descpb.ColumnFamilyDescriptor{
+				{
+					Name:        "primary",
+					ID:          0,
+					ColumnNames: []string{"license_id", "total_vcpu_hours", "first_seen", "last_seen", "last_aggregated_at", "is_active"},
+					ColumnIDs:   []descpb.ColumnID{1, 2, 3, 4, 5, 6},
+				},
+			},
+			pk("license_id"),
 		),
 	)
 )

@@ -210,6 +210,14 @@ var upgrades = []upgradebase.Upgrade{
 		alterStatementsTablePK,
 		upgrade.RestoreActionImplemented("statementsRestoreFunc skips restore of pre-V26_3 backups, which are guaranteed empty"),
 	),
+
+	upgrade.NewTenantUpgrade(
+		"create vcpu_audit_summary table",
+		clusterversion.V26_3_AddVcpuAuditSummaryTable.Version(),
+		upgrade.NoPrecondition,
+		createVcpuAuditSummaryTable,
+		upgrade.RestoreActionNotRequired("cluster restore does not restore this table"),
+	),
 	// Note: when starting a new release version, the first upgrade (for
 	// Vxy_zStart) must be a newFirstUpgrade. Keep this comment at the bottom.
 }
